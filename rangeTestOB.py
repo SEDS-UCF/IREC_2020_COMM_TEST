@@ -109,15 +109,10 @@ def loRaConnectionTest():
     while True:
 
         packet = None
-
         message = bytes("connect","utf-8")
-
         rfm9x.send(message)
-
         packet = rfm9x.receive()
-
         timeOut+=1
-
         time.sleep(1)
 
         if timeOut == 5:
@@ -184,8 +179,6 @@ def packetCommands(packets):
     
     commandList = ['connect','rssi','other'] #dynamic as needed
 
-    #multiple if !python switch
-
     for i in commandList:
         if str(i) == str(packets):
             x = commandList.index(packets)
@@ -225,7 +218,7 @@ def run():
 
         if packet is None:
 
-#if button A this module should send packets to the slave module
+#if button A this module will send packets to the slave module
 
             if not btnA.value: 
 
@@ -235,7 +228,7 @@ def run():
                 elif loRaDetectionTest != 1:
                     connectionError()
 
-#if button B this module should send packets for rssi to the slave module
+#if button B this module will send packets for rssi to the slave module
 
             if not btnB.value:
 
@@ -244,6 +237,8 @@ def run():
 
                 elif loRaDetectionTest() != 1:
                     connectionError()
+
+#if button C this module will reboot
 
             if not btnC.value:
                 display.fill(0)
