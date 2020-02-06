@@ -1,256 +1,95 @@
-#IREC2020 Range Test
-#Blake Patterson
-
+"""
+Example for using the RFM9x Radio with Raspberry Pi.
+ 
+Learn Guide: https://learn.adafruit.com/lora-and-lorawan-for-raspberry-pi
+Author: Brent Rubell for Adafruit Industries
+"""
+# Import Python System Libraries
 import time
+# Import Blinka Libraries
 import busio
 from digitalio import DigitalInOut, Direction, Pull
 import board
+# Import the SSD1306 module.
 import adafruit_ssd1306
+# Import RFM9x
 import adafruit_rfm9x
-import subprocess
-
-#Button Configuration
+ 
+# Button A
 btnA = DigitalInOut(board.D5)
 btnA.direction = Direction.INPUT
 btnA.pull = Pull.UP
  
+# Button B
 btnB = DigitalInOut(board.D6)
 btnB.direction = Direction.INPUT
 btnB.pull = Pull.UP
  
+# Button C
 btnC = DigitalInOut(board.D12)
 btnC.direction = Direction.INPUT
 btnC.pull = Pull.UP
-
-#I2C Interface
+ 
+# Create the I2C interface.
 i2c = busio.I2C(board.SCL, board.SDA)
-
-#OLED Display
+ 
+# 128x32 OLED Display
 reset_pin = DigitalInOut(board.D4)
 display = adafruit_ssd1306.SSD1306_I2C(128, 32, i2c, reset=reset_pin)
-
-#Clear the Display
+# Clear the display.
 display.fill(0)
 display.show()
 width = display.width
 height = display.height
  
-#Configure RFM9x LoRa Radio
+# Configure LoRa Radio
 CS = DigitalInOut(board.CE1)
 RESET = DigitalInOut(board.D25)
 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
-
-rfm9x = adafruit_rfm9x.RFM9x(spi,CS,RESET,915.0)
-
-rfm9x.tx_power = 23 
+rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, 915.0)
+rfm9x.tx_power = 23
+prev_packet = None
  
-def loRaDetectionTest():
-
-    while True:
-        display.fill(0)
- 
-        try:
-            display.text('RFM9x: Detected', 0, 0, 1)
-            display.show()
-            time.sleep(5)
-            return 1
-
-        except RuntimeError as error:
-            display.text('RFM9x: ERROR', 0, 0, 1)
-            displa.show()
-            print('RFM9x Error: ', error)
-            return 0
-  
-        display.show()
-        time.sleep(3)
-
-
-
-#used if connect command is recieved
-def loRaConnectionCommandTest():
-    
-    display.fill(0)
-    display.show()
-    display.text('Waiting for\nConnection\nPacket',0,0,1)
-    display.show()
-
-    while True:
-
-        packet = None 
-        packet = rfm9x.receive()
-        i = 0
-            
-        if packet is not None:
-            display.fill(0)
-            display.show()
-            display.text('Packet Receieved\nConnection Complete',0,0,1)
-            display.show()
-
-            while i < 3:
-                message = bytes("reply","utf-8")
-                rfm9x.send(message)
-                time.sleep(1)
-                i+=1
-
-            time.sleep(3)
-
-            run()    
-
-#used if connection is intialized from this module master->slave
-def loRaConnectionTest():
-
-    display.fill(0)
-    display.show()
-    display.text('Sending Connection\nPacket',0,0,1)
-    display.show()
-
-    timeOut = 0
-
-    while True:
-
-        packet = None
-        message = bytes("connect","utf-8")
-        rfm9x.send(message)
-        packet = rfm9x.receive()
-        timeOut+=1
-        time.sleep(1)
-
-        if timeOut == 5:
-            connectionError()
-
-        if packet is not None:
-            display.fill(0)
-            display.show()
-            display.text('Packet Receieved\nConnection Complete',0,0,1)
-            display.show()
-            time.sleep(3)
-            run()    
-
-def rssiCommandValue():
-
-    display.fill(0)
-    display.show()
-    display.text('Recieved Command\nTo Send RSSI',0,0,1)
-    display.show()
-
-    i = 0
-
-    while i < 3:
-
-        message = bytes("garabage","utf-8")
-        rfm9x.send(message)
-        i+=1
-        time.sleep(2)
-
-    run()
-       
-def rssiValue():
-
-    display.fill(0)
-    display.show()
-    display.text('Sending RSSI\nRecieve Packet',0,0,1)
-    display.show()
-
+while True:
     packet = None
-
-    timeOut = 0
-
-    while True:
-
-        message = bytes("rssi","utf-8")
-        rfm9x.send(message)
+    # draw a box to clear the image
+    display.fill(0)
+    display.text('RasPi LoRa', 35, 0, 1)
+ 
+    # check for packet rx
+    packet = rfm9x.receive()
+    if packet is None:
+        display.show()
+        display.text('- Waiting for PKT -', 15, 20, 1)
+    else:
+        # Display the packet text and rssi
+        display.fill(0)
+        prev_packet = packet
+        packet_text = str(prev_packet, "utf-8")
+        #display.text('RX: ', 0, 0, 1)
+        display.text(packet_text, 25, 0, 1)
+        display.text(str(rfm9x.rssi),0,0,1)
         time.sleep(1)
-        packet = rfm9x.receive()
-
-        timeOut+=1
-        
-        if timeOut == 5:
-            connectionError()
-
-        if packet is not None:
-            display.fill(0)
-            display.show()
-            display.text(str(rfm9x.rssi),0,0,1)
-            display.show()
-            time.sleep(3)
-            run()
-
-def packetCommands(packets):
-    
-    commandList = ['connect','rssi','other'] #dynamic as needed
-
-    for i in commandList:
-        if str(i) == str(packets):
-            x = commandList.index(packets)
-
-            if x == 0:
-                loRaConnectionCommandTest()
-
-            elif x == 1:
-                rssiCommandValue()
-
-
-def connectionError():
-
-    display.fill(0)
+ 
+    if not btnA.value:
+        # Send Button A
+        display.fill(0)
+        button_a_data = bytes("Button A!\r\n","utf-8")
+        rfm9x.send(button_a_data)
+        display.text('Sent Button A!', 25, 15, 1)
+    elif not btnB.value:
+        # Send Button B
+        display.fill(0)
+        button_b_data = bytes("Button B!\r\n","utf-8")
+        rfm9x.send(button_b_data)
+        display.text('Sent Button B!', 25, 15, 1)
+    elif not btnC.value:
+        # Send Button C
+        display.fill(0)
+        button_c_data = bytes("Button C!\r\n","utf-8")
+        rfm9x.send(button_c_data)
+        display.text('Sent Button C!', 25, 15, 1)
+ 
+ 
     display.show()
-    display.text('Error in Connecting\nTo Module',0,0,1)
-    display.show()
-
-    time.sleep(3)
-
-    run()
-  
-def run():
-
-    display.fill(0)
-    display.show()
-    display.text('Waiting\nBtA Connect\nBtB RSSI\nBtC Reboot\n',0,0,1)
-    display.show()
-
-    prev_packet = None
-
-    while True:
-
-        packet = None;
-
-        packet = rfm9x.receive()
-
-        if packet is None:
-
-#if button A this module will send packets to the slave module
-
-            if not btnA.value: 
-
-                if loRaDetectionTest() == 1:
-                    loRaConnectionTest()
-
-                elif loRaDetectionTest != 1:
-                    connectionError()
-
-#if button B this module will send packets for rssi to the slave module
-
-            if not btnB.value:
-
-                if loRaDetectionTest() == 1:
-                    rssiValue()
-
-                elif loRaDetectionTest() != 1:
-                    connectionError()
-
-#if button C this module will reboot
-
-            if not btnC.value:
-                display.fill(0)
-                display.show()
-                display.text('Waiting\nBtA Connect\nBtB RSSI\nBtC Reboot\n',0,0,1)
-                subprocess.Popen(['sudo','reboot','-h','now'])
-
-
-        else :
-            prev_packet = packet
-            packet_text = str(prev_packet,"utf-8")
-            packetCommands(packet_text)
-            
-
-run()
+    time.sleep(0.1)
